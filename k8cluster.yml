@@ -1,0 +1,126 @@
+---
+- name: install a k8 cluster
+  become: yes
+  hosts: k8cluster
+  tasks:
+
+    - name: set hostname
+      hostname:
+        name: kubemaster
+      when: "'kubemaster_grp' in group_names"
+
+    - name: set hostname
+      hostname:
+        name: kubenode
+      when: "'kubenode_grp' in group_names"
+
+    - name: Add mappings to /etc/hosts
+      blockinfile:
+        path: /etc/hosts
+        block: |
+          {{ item.ip }} {{ item.name }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.name }}"
+      loop:
+        - { name: kubemaster, ip: 192.168.1.141 }
+        - { name: kubenode, ip: 192.168.1.143 }
+
+
+    - name: install docker repo key
+      rpm_key:
+        state: present
+        key: https://download.docker.com/linux/centos/gpg
+        fingerprint: 060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35
+
+
+    - name: Add repository
+      yum_repository:
+        name: docker-ce
+        description: docker-ce repo
+        baseurl: https://download.docker.com/linux/centos/7/x86_64/stable
+
+
+    - name: sudo dnf install docker-ce-3:18.09.1-3.el7
+      dnf:
+          name: docker-ce-3:18.09.1-3.el7
+          state: present
+
+    - name: start docker service systemctl start docker
+      service:
+          name: docker
+          enabled: yes
+          state: started
+
+    - name: add vagrant to docker group
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
+
+
+    - name: sudo firewall-cmd --permanent --add-port=6443/tcp
+      firewalld:
+          state: enabled # required. choices: enabled;disabled;present;absent. Enable or disable a setting. For ports: Should this port accept(enabled) or reject(disabled) connections. The states "present" and "absent" can only be used in zone level operations (i.e. when no other parameters but zone and state are set).
+          permanent: yes # not required. Should this configuration be in the running firewalld configuration or persist across reboots. As of Ansible version 2.3, permanent operations can operate on firewalld configs when it's not running (requires firewalld >= 3.0.9). (NOTE: If this is false, immediate is assumed true.)
+          port: 6443/tcp # not required. Name of a port or port range to add/remove to/from firewalld. Must be in the form PORT/PROTOCOL or PORT-PORT/PROTOCOL for port ranges.
+
+
+    - name: sudo firewall-cmd --permanent --add-port=2379-2380/tcp
+      firewalld:
+        state: enabled
+        permanent: yes
+        port: 2379-2380/tcp
+
+# sudo firewall-cmd --permanent --add-port=10250/tcp
+
+    - name: sudo firewall-cmd --permanent --add-port=10250/tcp
+      firewalld:
+        state: enabled
+        permanent: yes
+        port: 10250/tcp
+
+# sudo firewall-cmd --permanent --add-port=10251/tcp
+    - name: sudo firewall-cmd --permanent --add-port=10251/tcp
+      firewalld:
+        state: enabled
+        permanent: yes
+        port: 10251/tcp
+# sudo firewall-cmd --permanent --add-port=10252/tcp
+    - name: sudo firewall-cmd --permanent --add-port=10252/tcp
+      firewalld:
+        state: enabled
+        permanent: yes
+        port: 10252/tcp
+# sudo firewall-cmd --permanent --add-port=10255/tcp
+    - name: sudo firewall-cmd --permanent --add-port=10255/tcp
+      firewalld:
+        state: enabled
+        permanent: yes
+        port: 10255/tcp
+
+# sudo firewall-cmd –reload
+    - name: reload firewalld
+      service:
+        name: firewalld # required. Name of the service.
+        state: reloaded # not required. choices: reloaded;restarted;started;stopped. C(started)/C(stopped) are idempotent actions that will not run commands unless necessary.  C(restarted) will always bounce the service.  C(reloaded) will always reload. B(At least one of state and enabled are required.) Note that reloaded will start the service if it is not already started, even if your chosen init system wouldn't normally.
+
+# sudo modprobe br_netfilter
+    - name: modprobe br_netfilter
+      modprobe:
+        name: br_netfilter
+        state: present
+
+# sudo echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+
+    - name: sudo echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+      command: echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+
+# sudo dnf install https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.6-3.3.el7.x86_64.rpm
+    - name: sudo dnf install https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.6-3.3.el7.x86_64.rpm
+      dnf:
+        name: https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.6-3.3.el7.x86_64.rpm
+        state: present
+
+    - name: sudo nano /etc/yum.repos.d/kubernetes.repo
+      copy:
+          dest: /etc/yum.repos.d # required. A directory to save the file into. For example, if the I(dest) directory is C(/backup) a I(src) file named C(/etc/profile) on host C(host.example.com), would be saved into C(/backup/host.example.com/etc/profile)
+          src: kubernetes.repo # required. The file on the remote system to fetch. This I(must) be a file, not a directory. Recursive fetching may be supported in a later release.
